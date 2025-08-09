@@ -1,4 +1,4 @@
-import { MessagesSquare } from "lucide-react";
+import { MessagesSquare, UsersRound } from "lucide-react";
 
 const NoChatSelected = () => {
   return (
@@ -21,6 +21,18 @@ const NoChatSelected = () => {
         <p className="text-base-content/60">
           Select a conversation from the sidebar to start chatting
         </p>
+        
+        {/* Group Chat Instructions */}
+        <div className="mt-8 p-4 bg-base-200 rounded-lg">
+          <div className="flex items-center justify-center mb-2">
+            <UsersRound className="w-6 h-6 text-primary mr-2" />
+            <h3 className="text-lg font-semibold">Group Chats</h3>
+          </div>
+          <p className="text-sm text-base-content/80">
+            Switch to the Groups tab in the sidebar and click "Create Group" to start a new group chat.
+            You can add members and chat with multiple people at once!
+          </p>
+        </div>
       </div>
     </div>
   );

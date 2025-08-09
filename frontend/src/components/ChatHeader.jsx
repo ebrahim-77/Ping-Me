@@ -1,10 +1,33 @@
-import { X } from "lucide-react";
+import { X, MoreVertical, UserPlus, UserMinus, LogOut } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
+import { useState } from "react";
+import AddMemberModal from "./AddMemberModal";
+import RemoveMemberModal from "./RemoveMemberModal";
 
 const ChatHeader = () => {
-  const { selectedUser, setSelectedUser } = useChatStore();
-  const { onlineUsers } = useAuthStore();
+  const {
+    selectedChat,
+    setSelectedChat,
+    isGroupChat,
+    addGroupMember,
+    removeGroupMember,
+    leaveGroup
+  } = useChatStore();
+  const { onlineUsers, authUser } = useAuthStore();
+  const [showGroupMenu, setShowGroupMenu] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
+
+  if (!selectedChat) return null;
+
+  // Check if user is admin or creator of the group
+  const isGroupAdmin = isGroupChat && (
+    selectedChat.creator._id === authUser._id ||
+    selectedChat.admins.some(admin => admin._id === authUser._id)
+  );
+
+  const isGroupCreator = isGroupChat && selectedChat.creator._id === authUser._id;
 
   return (
     <div className="p-2.5 border-b border-base-300">
@@ -13,24 +36,105 @@ const ChatHeader = () => {
           {/* Avatar */}
           <div className="avatar">
             <div className="size-10 rounded-full relative">
-              <img src={selectedUser.profilePic || "/avatar.png"} alt={selectedUser.fullName} />
+              <img
+                src={selectedChat.profilePic || "/avatar.png"}
+                alt={isGroupChat ? selectedChat.name : selectedChat.fullName}
+              />
+              {isGroupChat ? null : (
+                <span className={`absolute bottom-0 right-0 size-3 rounded-full ring-2 ring-base-100
+                  ${onlineUsers.includes(selectedChat._id) ? "bg-green-500" : "bg-red-500"}`}
+                />
+              )}
             </div>
           </div>
 
-          {/* User info */}
+          {/* Chat info */}
           <div>
-            <h3 className="font-medium">{selectedUser.fullName}</h3>
+            <h3 className="font-medium">
+              {isGroupChat ? selectedChat.name : selectedChat.fullName}
+            </h3>
             <p className="text-sm text-base-content/70">
-              {onlineUsers.includes(selectedUser._id) ? "Online" : "Offline"}
+              {isGroupChat
+                ? `${selectedChat.members.length} members`
+                : (onlineUsers.includes(selectedChat._id) ? "Online" : "Offline")
+              }
             </p>
           </div>
         </div>
 
-        {/* Close button */}
-        <button onClick={() => setSelectedUser(null)}>
-          <X />
-        </button>
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          {isGroupChat && (
+            <div className="relative">
+              <button onClick={() => setShowGroupMenu(!showGroupMenu)}>
+                <MoreVertical size={20} />
+              </button>
+              
+              {showGroupMenu && (
+                <div className="absolute right-0 top-8 bg-base-200 rounded-lg shadow-lg z-10 w-48">
+                  {isGroupAdmin && (
+                    <button
+                      className="flex items-center gap-2 w-full p-3 hover:bg-base-300 rounded-lg"
+                      onClick={() => {
+                        setShowAddMemberModal(true);
+                        setShowGroupMenu(false);
+                      }}
+                    >
+                      <UserPlus size={16} />
+                      Add Member
+                    </button>
+                  )}
+                  
+                  {isGroupCreator && (
+                    <button
+                      className="flex items-center gap-2 w-full p-3 hover:bg-base-300 rounded-lg"
+                      onClick={() => {
+                        setShowRemoveMemberModal(true);
+                        setShowGroupMenu(false);
+                      }}
+                    >
+                      <UserMinus size={16} />
+                      Remove Member
+                    </button>
+                  )}
+                  
+                  <button
+                    className="flex items-center gap-2 w-full p-3 hover:bg-base-300 rounded-lg text-red-500"
+                    onClick={() => {
+                      leaveGroup(selectedChat._id);
+                      setShowGroupMenu(false);
+                    }}
+                  >
+                    <LogOut size={16} />
+                    Leave Group
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Close button */}
+          <button onClick={() => setSelectedChat(null, false)}>
+            <X />
+          </button>
+        </div>
       </div>
+
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <AddMemberModal
+          group={selectedChat}
+          onClose={() => setShowAddMemberModal(false)}
+        />
+      )}
+
+      {/* Remove Member Modal */}
+      {showRemoveMemberModal && (
+        <RemoveMemberModal
+          group={selectedChat}
+          onClose={() => setShowRemoveMemberModal(false)}
+        />
+      )}
     </div>
   );
 };
