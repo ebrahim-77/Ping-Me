@@ -8,6 +8,7 @@ import {
   getGroupMessages,
   sendGroupMessage,
   leaveGroup,
+  updateGroup,
 } from "../controllers/group.controller.js";
 
 const router = express.Router();
@@ -19,5 +20,6 @@ router.post("/remove-member", protectRoute, removeMember);
 router.get("/messages/:groupId", protectRoute, getGroupMessages);
 router.post("/send/:groupId", protectRoute, sendGroupMessage);
 router.post("/leave/:groupId", protectRoute, leaveGroup);
+router.put("/update/:groupId", protectRoute, updateGroup);
 
 export default router;

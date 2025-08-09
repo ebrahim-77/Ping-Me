@@ -1,12 +1,13 @@
 import Group from "../models/group.model.js";
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
+import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
 // Create a new group
 export const createGroup = async (req, res) => {
   try {
-    const { name, members } = req.body;
+    const { name, members, profilePic } = req.body;
     const creatorId = req.user._id;
 
     // Validate that members array is provided and contains at least one member
@@ -23,12 +24,33 @@ export const createGroup = async (req, res) => {
       return res.status(400).json({ error: "One or more members are invalid" });
     }
 
-    const newGroup = new Group({
+    // Prepare group data
+    const groupData = {
       name,
       creator: creatorId,
       admins: [creatorId],
       members: memberIds,
-    });
+    };
+
+    // Handle profile picture if provided
+    if (profilePic) {
+      // Check if image is a valid base64 string
+      if (!profilePic.startsWith("data:image/")) {
+        return res.status(400).json({ error: "Invalid image format" });
+      }
+
+      // Upload base64 image to cloudinary
+      const uploadResponse = await cloudinary.uploader.upload(profilePic, {
+        folder: "chat_app/groups",
+        transformation: [
+          { width: 400, height: 400, crop: "limit", quality: "auto" },
+        ],
+      });
+      
+      groupData.profilePic = uploadResponse.secure_url;
+    }
+
+    const newGroup = new Group(groupData);
 
     await newGroup.save();
 
@@ -370,6 +392,80 @@ export const leaveGroup = async (req, res) => {
     res.status(200).json({ message: "Left group successfully" });
   } catch (error) {
     console.log("Error in leaveGroup controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Update group (including profile picture)
+export const updateGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { name } = req.body;
+    const { profilePic } = req.body;
+    const userId = req.user._id;
+
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    // Check if user is admin or creator
+    const isAdmin = group.admins.some(
+      (admin) => admin.toString() === userId.toString()
+    );
+    const isCreator = group.creator.toString() === userId.toString();
+    if (!isAdmin && !isCreator) {
+      return res
+        .status(403)
+        .json({ error: "Only admins or creator can update group" });
+    }
+
+    let updatedFields = {};
+
+    // Update group name if provided
+    if (name) {
+      updatedFields.name = name;
+    }
+
+    // Update profile picture if provided
+    if (profilePic) {
+      // Check if image is a valid base64 string
+      if (!profilePic.startsWith("data:image/")) {
+        return res.status(400).json({ error: "Invalid image format" });
+      }
+
+      // Upload base64 image to cloudinary
+      const uploadResponse = await cloudinary.uploader.upload(profilePic, {
+        folder: "chat_app/groups",
+        transformation: [
+          { width: 400, height: 400, crop: "limit", quality: "auto" },
+        ],
+      });
+      
+      updatedFields.profilePic = uploadResponse.secure_url;
+    }
+
+    // Update the group
+    const updatedGroup = await Group.findByIdAndUpdate(
+      groupId,
+      { $set: updatedFields },
+      { new: true }
+    )
+      .populate("members", "-password")
+      .populate("admins", "-password")
+      .populate("creator", "-password");
+
+    // Notify all group members about the updated group
+    group.members.forEach((memberId) => {
+      const memberSocketId = getReceiverSocketId(memberId);
+      if (memberSocketId) {
+        io.to(memberSocketId).emit("groupUpdated", updatedGroup);
+      }
+    });
+
+    res.status(200).json(updatedGroup);
+  } catch (error) {
+    console.log("Error in updateGroup controller: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };

@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { X } from "lucide-react";
+import { X, Camera } from "lucide-react";
 
 const CreateGroupModal = ({ onClose }) => {
   const { users, createGroup } = useChatStore();
   const { authUser } = useAuthStore();
   const [groupName, setGroupName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState([]);
+  const [profilePic, setProfilePic] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleMemberToggle = (userId) => {
     if (selectedMembers.includes(userId)) {
@@ -16,6 +18,18 @@ const CreateGroupModal = ({ onClose }) => {
     } else {
       setSelectedMembers([...selectedMembers, userId]);
     }
+  };
+
+  const handleProfilePicUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+
+    reader.onload = () => {
+      setProfilePic(reader.result);
+    };
   };
 
   const handleSubmit = async (e) => {
@@ -35,6 +49,7 @@ const CreateGroupModal = ({ onClose }) => {
       const groupData = {
         name: groupName,
         members: selectedMembers,
+        profilePic: profilePic,
       };
       
       await createGroup(groupData);
@@ -66,6 +81,37 @@ const CreateGroupModal = ({ onClose }) => {
               className="w-full input input-bordered"
               placeholder="Enter group name"
               required
+            />
+          </div>
+
+          {/* Profile Picture Upload */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Group Photo (Optional)</label>
+            <div className="flex items-center gap-4">
+              <div className="avatar">
+                <div className="size-16 rounded-full">
+                  <img
+                    src={profilePic || "/avatar.png"}
+                    alt="Group preview"
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary flex items-center gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera size={16} />
+                Upload Photo
+              </button>
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              onChange={handleProfilePicUpload}
             />
           </div>
 

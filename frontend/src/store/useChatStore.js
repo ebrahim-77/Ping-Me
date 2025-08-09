@@ -148,6 +148,29 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  updateGroup: async (groupId, groupData) => {
+    try {
+      const res = await axiosInstance.put(`/groups/update/${groupId}`, groupData);
+      // Update the group in the state
+      set((state) => ({
+        groups: state.groups.map((group) =>
+          group._id.toString() === groupId.toString() ? res.data : group
+        ),
+      }));
+      // If this is the selected group, update it
+      set((state) => ({
+        selectedChat:
+          state.selectedChat && state.selectedChat._id.toString() === groupId.toString()
+            ? res.data
+            : state.selectedChat,
+      }));
+      toast.success("Group updated successfully");
+      return res.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update group");
+    }
+  },
+
   subscribeToMessages: () => {
     const { selectedChat, isGroupChat } = get();
     if (!selectedChat) return;
