@@ -74,6 +74,22 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  editMessage: async (messageId, newText) => {
+    const { messages } = get();
+    try {
+      const res = await axiosInstance.put(`/messages/${messageId}`, { text: newText });
+      // Update the message in the state
+      set({
+        messages: messages.map((message) =>
+          message._id === messageId ? { ...message, text: newText, edited: true } : message
+        ),
+      });
+      return res.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to edit message");
+    }
+  },
+
   createGroup: async (groupData) => {
     try {
       const res = await axiosInstance.post("/groups/create", groupData);
@@ -210,6 +226,15 @@ export const useChatStore = create((set, get) => ({
       });
     });
 
+    // Subscribe to message edit events
+    socket.on("messageEdited", (updatedMessage) => {
+      set({
+        messages: get().messages.map((message) =>
+          message._id === updatedMessage._id ? updatedMessage : message
+        ),
+      });
+    });
+
     // Subscribe to group updates
     socket.on("groupUpdated", (updatedGroup) => {
       // Update the group in the state
@@ -263,6 +288,7 @@ export const useChatStore = create((set, get) => ({
     socket.off("newMessage");
     socket.off("newGroupMessage");
     socket.off("messageDeleted");
+    socket.off("messageEdited");
     socket.off("groupUpdated");
     socket.off("removedFromGroup");
     socket.off("leftGroup");
